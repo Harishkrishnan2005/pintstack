@@ -10,7 +10,7 @@ import { normalizeTags, validatePostInput } from "../validators/postValidators.j
 const postPopulate = [
   {
     path: "user",
-    select: "username profileImage bio",
+    select: "username profileImage bio followers following",
   },
   {
     path: "comments.user",

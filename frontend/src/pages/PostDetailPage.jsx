@@ -2,20 +2,22 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Bookmark, Heart, MessageCircleMore, Send, Sparkles } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import PageLoader from "../components/common/PageLoader.jsx";
 import Button from "../components/ui/Button.jsx";
 import useAuth from "../hooks/useAuth.js";
 import { addCommentRequest, getPostRequest, toggleLikeRequest, toggleSaveRequest } from "../services/postService.js";
+import { toggleFollowRequest } from "../services/userService.js";
 import { getOptimizedImage } from "../utils/cloudinary.js";
 import { formatCompactNumber } from "../utils/formatters.js";
 
 function PostDetailPage() {
   const { id } = useParams();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, setUser } = useAuth();
   const [post, setPost] = useState(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -82,16 +84,92 @@ function PostDetailPage() {
   const isSavedByCurrentUser = post.saves?.some(
     (userId) => String(userId) === String(currentUserId)
   );
+  const isOwner = String(post.user?._id) === String(currentUserId);
+  const isFollowingPostOwner = post.user?.followers?.some(
+    (userId) => String(userId) === String(currentUserId)
+  );
+
+  const handleFollowToggle = async () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in first.");
+      return;
+    }
+
+    if (isOwner || followLoading) {
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      const response = await toggleFollowRequest(post.user._id);
+      setPost((previous) => ({
+        ...previous,
+        user: {
+          ...previous.user,
+          ...response.user,
+        },
+      }));
+      setUser((previous) => (previous ? { ...previous, ...response.currentUser } : previous));
+      toast.success(response.message);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to update follow status.");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="overflow-hidden rounded-[2.5rem] border border-white/70 bg-white soft-shadow"
-      >
-        <img src={getOptimizedImage(post.image, 1200)} alt={post.title} className="w-full object-cover" />
-      </motion.div>
+      <div className="space-y-5">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-[2.5rem] border border-white/70 bg-white soft-shadow"
+        >
+          <img src={getOptimizedImage(post.image, 1200)} alt={post.title} className="w-full object-cover" />
+        </motion.div>
+        <section className="rounded-[2rem] border border-white/70 bg-white/90 p-5 soft-shadow">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Link to={`/profile/${post.user?._id}`} className="flex min-w-0 items-center gap-3">
+              <img src={post.user?.profileImage} alt={post.user?.username} className="h-14 w-14 rounded-full object-cover" />
+              <div className="min-w-0">
+                <p className="text-lg font-semibold text-slate-950">{post.user?.username}</p>
+                <p className="line-clamp-2 text-sm text-slate-500">{post.user?.bio}</p>
+              </div>
+            </Link>
+            {!isOwner && isAuthenticated && (
+              <Button
+                variant={isFollowingPostOwner ? "secondary" : "accent"}
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+                className={isFollowingPostOwner ? "" : "bg-gradient-to-r from-rose-500 to-orange-400"}
+              >
+                {followLoading ? "Updating..." : isFollowingPostOwner ? "Unfollow" : "Follow"}
+              </Button>
+            )}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1.5rem] bg-slate-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Followers</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">
+                {formatCompactNumber(post.user?.followers?.length || 0)}
+              </p>
+            </div>
+            <div className="rounded-[1.5rem] bg-slate-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Following</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">
+                {formatCompactNumber(post.user?.following?.length || 0)}
+              </p>
+            </div>
+            <div className="rounded-[1.5rem] bg-slate-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Post likes</p>
+              <p className="mt-2 text-xl font-semibold text-slate-950">
+                {formatCompactNumber(post.likes?.length || 0)}
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
       <section className="glass-panel rounded-[2.5rem] border border-white/60 p-5 soft-shadow sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>

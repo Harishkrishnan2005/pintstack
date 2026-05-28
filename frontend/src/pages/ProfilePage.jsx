@@ -5,14 +5,16 @@ import MasonryFeed from "../components/feed/MasonryFeed.jsx";
 import PageLoader from "../components/common/PageLoader.jsx";
 import ProfileHeader from "../components/profile/ProfileHeader.jsx";
 import useAuth from "../hooks/useAuth.js";
-import { getUserProfileRequest } from "../services/userService.js";
+import { deletePostRequest } from "../services/postService.js";
+import { getUserProfileRequest, toggleFollowRequest } from "../services/userService.js";
 
 function ProfilePage() {
   const { id } = useParams();
-  const { user: currentUser, isAuthenticated } = useAuth();
+  const { user: currentUser, isAuthenticated, setUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const profileId = id === "me" ? currentUser?._id : id;
@@ -48,9 +50,53 @@ function ProfilePage() {
     return null;
   }
 
+  const isOwner = String(profile._id) === String(currentUser?._id);
+  const isFollowing = profile.followers?.some(
+    (userId) => String(userId) === String(currentUser?._id)
+  );
+
+  const handleFollowToggle = async () => {
+    if (!isAuthenticated || isOwner || followLoading) {
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      const response = await toggleFollowRequest(profile._id);
+      setProfile(response.user);
+      setUser((previous) => (previous ? { ...previous, ...response.currentUser } : previous));
+      toast.success(response.message);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to update follow status.");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleDeletePost = async (post) => {
+    if (!window.confirm(`Delete "${post.title}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await deletePostRequest(post._id);
+      setPosts((previous) => previous.filter((item) => item._id !== post._id));
+      toast.success(response.message);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to delete post.");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <ProfileHeader user={profile} isOwner={String(profile._id) === String(currentUser?._id)} />
+      <ProfileHeader
+        user={profile}
+        isOwner={isOwner}
+        isAuthenticated={isAuthenticated}
+        isFollowing={Boolean(isFollowing)}
+        onFollowToggle={handleFollowToggle}
+        followLoading={followLoading}
+      />
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-[1.8rem] border border-white/60 bg-white/75 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Boards</p>
@@ -74,6 +120,8 @@ function ProfilePage() {
         onLike={() => {}}
         onSave={() => {}}
         isAuthenticated={isAuthenticated}
+        showDeleteAction={isOwner}
+        onDelete={handleDeletePost}
         emptyTitle="No creator posts yet"
         emptyDescription="This profile is ready for a portfolio-quality gallery once the first post is published."
       />

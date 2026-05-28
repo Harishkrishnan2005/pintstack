@@ -12,6 +12,11 @@ export const updateProfileRequest = async (formData) => {
   return data;
 };
 
+export const toggleFollowRequest = async (id) => {
+  const { data } = await apiClient.put(`/users/follow/${id}`);
+  return data;
+};
+
 export const getSavedPostsRequest = async () => {
   const { data } = await apiClient.get("/users/saved");
   return data;

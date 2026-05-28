@@ -1,11 +1,18 @@
 import { motion } from "framer-motion";
-import { Bookmark, Heart, MessageCircle } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import useAuth from "../../hooks/useAuth.js";
 import { getOptimizedImage } from "../../utils/cloudinary.js";
 import { formatCompactNumber } from "../../utils/formatters.js";
 
-function PostCard({ post, onLike, onSave, isAuthenticated }) {
+function PostCard({
+  post,
+  onLike,
+  onSave,
+  isAuthenticated,
+  showDeleteAction = false,
+  onDelete,
+}) {
   const { user } = useAuth();
   const currentUserId = user?._id;
   const isLikedByCurrentUser = post.likes?.some(
@@ -37,9 +44,21 @@ function PostCard({ post, onLike, onSave, isAuthenticated }) {
             <h3 className="line-clamp-1 text-base font-semibold text-slate-900">{post.title}</h3>
             <p className="mt-1 text-sm text-slate-500">{post.category}</p>
           </div>
-          <span className="shrink-0 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-            {post.tags?.[0] || "curated"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+              {post.tags?.[0] || "curated"}
+            </span>
+            {showDeleteAction && (
+              <button
+                type="button"
+                onClick={() => onDelete?.(post)}
+                className="rounded-full p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                aria-label={`Delete ${post.title}`}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">

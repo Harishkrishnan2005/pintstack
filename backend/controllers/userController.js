@@ -4,6 +4,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import sendResponse from "../utils/sendResponse.js";
 import { validateProfileUpdate } from "../validators/userValidators.js";
 import { destroyCloudinaryAsset } from "../services/cloudinaryService.js";
+import { buildAuthPayload } from "../services/authService.js";
 
 export const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findOne({
@@ -22,7 +23,18 @@ export const getUserProfile = asyncHandler(async (req, res) => {
   const posts = await Post.find({
     user: user._id,
     tenantId: req.tenantId,
-  }).sort("-createdAt");
+  })
+    .populate([
+      {
+        path: "user",
+        select: "username profileImage bio followers following",
+      },
+      {
+        path: "comments.user",
+        select: "username profileImage",
+      },
+    ])
+    .sort("-createdAt");
 
   sendResponse(res, 200, "User profile fetched.", { user, posts });
 });
@@ -58,6 +70,48 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
       profileImage: user.profileImage,
       tenantId: user.tenantId,
     },
+  });
+});
+
+export const toggleFollowUser = asyncHandler(async (req, res) => {
+  if (String(req.user._id) === String(req.params.id)) {
+    const error = new Error("You cannot follow your own profile.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [currentUser, targetUser] = await Promise.all([
+    User.findById(req.user._id),
+    User.findOne({
+      _id: req.params.id,
+      tenantId: req.tenantId,
+    }).select("-password"),
+  ]);
+
+  if (!currentUser || !targetUser) {
+    const error = new Error("User not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const isFollowing = currentUser.following.some(
+    (userId) => String(userId) === String(targetUser._id)
+  );
+
+  currentUser.following = isFollowing
+    ? currentUser.following.filter((userId) => String(userId) !== String(targetUser._id))
+    : [...currentUser.following, targetUser._id];
+
+  targetUser.followers = isFollowing
+    ? targetUser.followers.filter((userId) => String(userId) !== String(currentUser._id))
+    : [...targetUser.followers, currentUser._id];
+
+  await Promise.all([currentUser.save(), targetUser.save()]);
+
+  sendResponse(res, 200, isFollowing ? "User unfollowed successfully." : "User followed successfully.", {
+    user: targetUser,
+    currentUser: buildAuthPayload(currentUser),
+    following: !isFollowing,
   });
 });
 

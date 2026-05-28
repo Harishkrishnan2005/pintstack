@@ -14,6 +14,8 @@ function MasonryFeed({
   onLike,
   onSave,
   isAuthenticated,
+  showDeleteAction = false,
+  onDelete,
   emptyTitle,
   emptyDescription,
 }) {
@@ -38,6 +40,8 @@ function MasonryFeed({
             onLike={onLike}
             onSave={onSave}
             isAuthenticated={isAuthenticated}
+            showDeleteAction={showDeleteAction}
+            onDelete={onDelete}
           />
         </div>
       ))}

@@ -4,7 +4,14 @@ import { Link } from "react-router-dom";
 import { formatCompactNumber } from "../../utils/formatters.js";
 import Button from "../ui/Button.jsx";
 
-function ProfileHeader({ user, isOwner = false }) {
+function ProfileHeader({
+  user,
+  isOwner = false,
+  isAuthenticated = false,
+  isFollowing = false,
+  onFollowToggle,
+  followLoading = false,
+}) {
   return (
     <section className="glass-panel soft-shadow overflow-hidden rounded-[2.4rem] border border-white/60">
       <div className="h-36 bg-[radial-gradient(circle_at_top_left,_rgba(244,63,94,0.48),_transparent_32%),linear-gradient(135deg,_#0f172a_0%,_#1e293b_38%,_#fb7185_140%)] sm:h-44" />
@@ -32,6 +39,16 @@ function ProfileHeader({ user, isOwner = false }) {
             <Link to="/profile/edit">
               <Button className="bg-gradient-to-r from-slate-950 to-slate-700">Edit profile</Button>
             </Link>
+          )}
+          {!isOwner && isAuthenticated && (
+            <Button
+              variant={isFollowing ? "secondary" : "accent"}
+              onClick={onFollowToggle}
+              disabled={followLoading}
+              className={isFollowing ? "" : "bg-gradient-to-r from-rose-500 to-orange-400"}
+            >
+              {followLoading ? "Updating..." : isFollowing ? "Unfollow" : "Follow"}
+            </Button>
           )}
         </div>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
